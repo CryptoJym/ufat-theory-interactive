@@ -1,240 +1,226 @@
 'use client'
 
-import Sketch from 'react-p5'
-import p5Types from 'p5'
+import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
+
+interface Particle {
+  x: number
+  y: number
+  phase: number
+  collapsed: boolean
+  targetX?: number
+  targetY?: number
+}
 
 export default function WaveParticleSketch() {
-  let particles: QuantumParticle[] = []
-  let observing = false
-  let observer = { x: 0, y: 0 }
-  let slits: Slit[] = []
+  const [observing, setObserving] = useState(false)
+  const [observerPos, setObserverPos] = useState({ x: 0, y: 0 })
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<Particle[]>([])
+  const animationRef = useRef<number>()
 
-  class QuantumParticle {
-    wavePoints: {x: number, y: number, phase: number}[] = []
-    collapsed = false
-    particleX = 0
-    particleY = 0
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
     
-    constructor(public startX: number, public startY: number) {
-      // Initialize wave points
-      for (let i = 0; i < 50; i++) {
-        this.wavePoints.push({
-          x: startX,
-          y: startY,
-          phase: 0
-        })
-      }
-    }
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
     
-    update = (p5: p5Types) => {
-      if (!this.collapsed) {
-        // Wave behavior - spread out
-        this.wavePoints.forEach((point, i) => {
-          point.x += 2
-          point.phase += 0.1
-          point.y = this.startY + p5.sin(point.phase + i * 0.3) * 30
+    // Initialize particles
+    particlesRef.current = []
+    
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Background
+      ctx.fillStyle = '#faf5ff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw double slit
+      ctx.fillStyle = '#666'
+      ctx.fillRect(canvas.width * 0.4 - 2, 0, 4, canvas.height * 0.35)
+      ctx.fillRect(canvas.width * 0.4 - 2, canvas.height * 0.45, 4, canvas.height * 0.1)
+      ctx.fillRect(canvas.width * 0.4 - 2, canvas.height * 0.65, 4, canvas.height * 0.35)
+      
+      // Add new particles
+      if (Math.random() < 0.05) {
+        particlesRef.current.push({
+          x: 50,
+          y: canvas.height / 2,
+          phase: 0,
+          collapsed: false
         })
-      } else {
-        // Particle behavior - straight line
-        this.particleX += 3
-        this.particleY = this.startY
       }
       
-      // Remove if off screen
-      if (this.wavePoints[0].x > p5.width || this.particleX > p5.width) {
-        return false
-      }
-      return true
-    }
-    
-    checkObservation = (p5: p5Types, obsX: number, obsY: number) => {
-      if (!this.collapsed) {
-        const avgX = this.wavePoints.reduce((sum, p) => sum + p.x, 0) / this.wavePoints.length
-        const avgY = this.wavePoints.reduce((sum, p) => sum + p.y, 0) / this.wavePoints.length
-        
-        const dist = p5.dist(avgX, avgY, obsX, obsY)
-        if (dist < 100) {
-          // Collapse the wave function
-          this.collapsed = true
-          this.particleX = avgX
-          this.particleY = avgY
-        }
-      }
-    }
-    
-    draw = (p5: p5Types) => {
-      if (!this.collapsed) {
-        // Draw as wave
-        p5.noFill()
-        p5.beginShape()
-        this.wavePoints.forEach((point, i) => {
-          p5.stroke(100, 150, 255, 255 - i * 5)
-          p5.strokeWeight(3 - i * 0.05)
-          p5.vertex(point.x, point.y)
-        })
-        p5.endShape()
-        
-        // Wave probability cloud
-        this.wavePoints.forEach((point, i) => {
-          if (i % 5 === 0) {
-            p5.noStroke()
-            p5.fill(100, 150, 255, 30)
-            p5.circle(point.x, point.y, 40)
-          }
-        })
-      } else {
-        // Draw as particle
-        p5.push()
-        p5.noStroke()
-        p5.fill(255, 100, 100)
-        p5.circle(this.particleX, this.particleY, 10)
-        
-        // Particle glow
-        p5.fill(255, 100, 100, 50)
-        p5.circle(this.particleX, this.particleY, 20)
-        p5.pop()
-      }
-    }
-  }
-
-  class Slit {
-    constructor(public x: number, public y1: number, public y2: number) {}
-    
-    draw = (p5: p5Types) => {
-      p5.push()
-      p5.stroke(100)
-      p5.strokeWeight(4)
-      p5.line(this.x, 0, this.x, this.y1)
-      p5.line(this.x, this.y2, this.x, p5.height)
-      p5.pop()
-    }
-  }
-
-  const setup = (p5: p5Types, canvasParentRef: Element) => {
-    const canvas = p5.createCanvas(p5.windowWidth, p5.windowHeight)
-    canvas.parent(canvasParentRef)
-    
-    // Create double slits
-    const slitX = p5.width * 0.4
-    const centerY = p5.height / 2
-    const gap = 80
-    slits.push(new Slit(slitX, centerY - gap, centerY - gap/2))
-    slits.push(new Slit(slitX, centerY + gap/2, centerY + gap))
-  }
-
-  const draw = (p5: p5Types) => {
-    p5.background(250, 245, 255)
-    
-    // Title
-    p5.push()
-    p5.noStroke()
-    p5.fill(0)
-    p5.textAlign(p5.CENTER)
-    p5.textSize(20)
-    p5.text('Wave-Particle Duality', p5.width/2, 30)
-    p5.textSize(14)
-    p5.text(observing ? 'OBSERVING - Particles collapse!' : 'NOT OBSERVING - Waves interfere', 
-             p5.width/2, 50)
-    p5.pop()
-    
-    // Draw slits
-    slits.forEach(slit => slit.draw(p5))
-    
-    // Draw observer if active
-    if (observing) {
-      p5.push()
-      p5.translate(observer.x, observer.y)
-      
-      // Eye
-      p5.fill(255)
-      p5.stroke(0)
-      p5.strokeWeight(2)
-      p5.ellipse(0, 0, 40, 20)
-      p5.fill(100, 150, 255)
-      p5.noStroke()
-      p5.circle(0, 0, 15)
-      p5.fill(0)
-      p5.circle(0, 0, 8)
-      
-      // Observation rays
-      p5.stroke(255, 200, 100, 100)
-      p5.strokeWeight(2)
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * p5.TWO_PI
-        p5.line(0, 0, p5.cos(angle) * 60, p5.sin(angle) * 60)
-      }
-      p5.pop()
-    }
-    
-    // Update and draw particles
-    particles = particles.filter(p => {
-      if (observing) {
-        p.checkObservation(p5, observer.x, observer.y)
-      }
-      p.draw(p5)
-      return p.update(p5)
-    })
-    
-    // Emit new particles
-    if (p5.frameCount % 30 === 0) {
-      particles.push(new QuantumParticle(50, p5.height/2))
-    }
-    
-    // Draw interference pattern (when not observing)
-    if (!observing) {
-      p5.push()
-      p5.noStroke()
-      for (let x = p5.width * 0.6; x < p5.width - 50; x += 10) {
-        for (let y = 100; y < p5.height - 100; y += 10) {
-          const dist1 = p5.dist(x, y, slits[0].x, (slits[0].y1 + slits[0].y2)/2)
-          const dist2 = p5.dist(x, y, slits[1].x, (slits[1].y1 + slits[1].y2)/2)
-          const interference = p5.sin((dist1 - dist2) * 0.1)
+      // Update and draw particles
+      particlesRef.current = particlesRef.current.filter(particle => {
+        if (!particle.collapsed) {
+          // Wave behavior
+          particle.x += 3
+          particle.phase += 0.1
           
-          p5.fill(100, 150, 255, p5.abs(interference) * 50)
-          p5.circle(x, y, 5)
+          // Draw wave
+          ctx.strokeStyle = 'rgba(100, 150, 255, 0.6)'
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          
+          for (let i = 0; i < 20; i++) {
+            const waveY = particle.y + Math.sin(particle.phase + i * 0.3) * 30
+            const waveX = particle.x - i * 5
+            if (i === 0) {
+              ctx.moveTo(waveX, waveY)
+            } else {
+              ctx.lineTo(waveX, waveY)
+            }
+          }
+          ctx.stroke()
+          
+          // Check observation
+          if (observing) {
+            const dist = Math.hypot(particle.x - observerPos.x, particle.y - observerPos.y)
+            if (dist < 100) {
+              particle.collapsed = true
+              particle.targetY = particle.y + (Math.random() - 0.5) * 100
+            }
+          }
+        } else {
+          // Particle behavior
+          particle.x += 4
+          if (particle.targetY !== undefined) {
+            particle.y += (particle.targetY - particle.y) * 0.1
+          }
+          
+          // Draw particle
+          ctx.fillStyle = '#ff6b6b'
+          ctx.beginPath()
+          ctx.arc(particle.x, particle.y, 5, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        
+        return particle.x < canvas.width + 50
+      })
+      
+      // Draw interference pattern when not observing
+      if (!observing) {
+        for (let x = canvas.width * 0.6; x < canvas.width - 50; x += 10) {
+          for (let y = 100; y < canvas.height - 100; y += 10) {
+            const dist1 = Math.hypot(x - canvas.width * 0.4, y - canvas.height * 0.4)
+            const dist2 = Math.hypot(x - canvas.width * 0.4, y - canvas.height * 0.6)
+            const interference = Math.sin((dist1 - dist2) * 0.05)
+            
+            ctx.fillStyle = `rgba(100, 150, 255, ${Math.abs(interference) * 0.3})`
+            ctx.fillRect(x - 2, y - 2, 4, 4)
+          }
         }
       }
-      p5.pop()
+      
+      // Draw observer if active
+      if (observing) {
+        ctx.save()
+        ctx.translate(observerPos.x, observerPos.y)
+        
+        // Eye
+        ctx.fillStyle = 'white'
+        ctx.strokeStyle = 'black'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.ellipse(0, 0, 30, 15, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+        
+        ctx.fillStyle = '#6495ed'
+        ctx.beginPath()
+        ctx.arc(0, 0, 10, 0, Math.PI * 2)
+        ctx.fill()
+        
+        ctx.fillStyle = 'black'
+        ctx.beginPath()
+        ctx.arc(0, 0, 5, 0, Math.PI * 2)
+        ctx.fill()
+        
+        // Observation rays
+        ctx.strokeStyle = 'rgba(255, 200, 100, 0.3)'
+        ctx.lineWidth = 1
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2
+          ctx.beginPath()
+          ctx.moveTo(0, 0)
+          ctx.lineTo(Math.cos(angle) * 60, Math.sin(angle) * 60)
+          ctx.stroke()
+        }
+        
+        ctx.restore()
+      }
     }
     
-    // Instructions
-    p5.push()
-    p5.fill(0)
-    p5.textAlign(p5.CENTER)
-    p5.textSize(14)
-    p5.text('Hold mouse down to observe', p5.width/2, p5.height - 30)
-    p5.pop()
+    const animate = () => {
+      draw()
+      animationRef.current = requestAnimationFrame(animate)
+    }
+    
+    animate()
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [observing, observerPos])
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (rect) {
+      setObserverPos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      })
+      setObserving(true)
+    }
   }
 
-  const mousePressed = (p5: p5Types) => {
-    observing = true
-    observer.x = p5.mouseX
-    observer.y = p5.mouseY
-  }
-
-  const mouseReleased = () => {
-    observing = false
-  }
-
-  const mouseDragged = (p5: p5Types) => {
-    observer.x = p5.mouseX
-    observer.y = p5.mouseY
-  }
-
-  const windowResized = (p5: p5Types) => {
-    p5.resizeCanvas(p5.windowWidth, p5.windowHeight)
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (observing) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect) {
+        setObserverPos({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        })
+      }
+    }
   }
 
   return (
     <div className="p5-canvas-container">
-      <Sketch 
-        setup={setup} 
-        draw={draw} 
-        mousePressed={mousePressed}
-        mouseReleased={mouseReleased}
-        mouseDragged={mouseDragged}
-        windowResized={windowResized}
-      />
+      <div className="text-center mb-4">
+        <h3 className="text-xl font-bold">Wave-Particle Duality</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          {observing ? 'OBSERVING - Particles collapse!' : 'NOT OBSERVING - Waves interfere'}
+        </p>
+      </div>
+      
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={400}
+          className="w-full h-full border border-gray-200 rounded-lg cursor-crosshair"
+          onMouseDown={handleMouseDown}
+          onMouseUp={() => setObserving(false)}
+          onMouseLeave={() => setObserving(false)}
+          onMouseMove={handleMouseMove}
+        />
+        
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute bottom-4 left-0 right-0 text-center"
+        >
+          <p className="text-sm text-gray-700 bg-white/80 inline-block px-4 py-2 rounded-full">
+            Hold mouse down to observe
+          </p>
+        </motion.div>
+      </div>
     </div>
   )
 }

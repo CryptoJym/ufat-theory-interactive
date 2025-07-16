@@ -1,220 +1,257 @@
 'use client'
 
-import Sketch from 'react-p5'
-import p5Types from 'p5'
+import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
+
+interface Mirror {
+  x: number
+  y: number
+  angle: number
+  size: number
+}
+
+interface Particle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  hue: number
+  trail: { x: number; y: number }[]
+}
 
 export default function MirrorUniverseSketch() {
-  let mirrors: Mirror[] = []
-  let particles: Particle[] = []
-  let consciousnessLevel = 0
-  let targetConsciousness = 0
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const mirrorsRef = useRef<Mirror[]>([])
+  const particlesRef = useRef<Particle[]>([])
+  const [consciousnessLevel, setConsciousnessLevel] = useState(0)
+  const animationRef = useRef<number>()
 
-  class Mirror {
-    constructor(public x: number, public y: number, public angle: number, public size: number) {}
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
     
-    draw = (p5: p5Types) => {
-      p5.push()
-      p5.translate(this.x, this.y)
-      p5.rotate(this.angle)
-      p5.stroke(200, 200, 255)
-      p5.strokeWeight(3)
-      p5.line(-this.size/2, 0, this.size/2, 0)
-      
-      // Mirror reflection effect
-      p5.stroke(150, 150, 255, 100)
-      p5.strokeWeight(8)
-      p5.line(-this.size/2, 0, this.size/2, 0)
-      p5.pop()
-    }
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
     
-    reflect = (particle: Particle, p5: p5Types) => {
-      // Calculate reflection when particle hits mirror
-      const d = p5.dist(particle.x, particle.y, this.x, this.y)
-      if (d < this.size/2 + 10) {
-        const angle = p5.atan2(particle.y - this.y, particle.x - this.x)
-        const mirrorNormal = this.angle + p5.PI/2
-        const incidentAngle = angle - mirrorNormal
-        const reflectionAngle = mirrorNormal - incidentAngle
-        
-        particle.vx = p5.cos(reflectionAngle) * 2
-        particle.vy = p5.sin(reflectionAngle) * 2
-        
-        return true
-      }
-      return false
-    }
-  }
-
-  class Particle {
-    trail: {x: number, y: number}[] = []
+    // Initialize mirrors
+    const centerX = canvas.width / 2
+    const centerY = canvas.height / 2
     
-    constructor(
-      public x: number, 
-      public y: number, 
-      public vx: number, 
-      public vy: number,
-      public hue: number
-    ) {}
-    
-    update = (p5: p5Types) => {
-      this.x += this.vx
-      this.y += this.vy
-      
-      // Add to trail
-      this.trail.push({x: this.x, y: this.y})
-      if (this.trail.length > 20) {
-        this.trail.shift()
-      }
-      
-      // Wrap around edges
-      if (this.x < 0) this.x = p5.width
-      if (this.x > p5.width) this.x = 0
-      if (this.y < 0) this.y = p5.height
-      if (this.y > p5.height) this.y = 0
-    }
-    
-    draw = (p5: p5Types) => {
-      // Draw trail
-      p5.noFill()
-      p5.beginShape()
-      this.trail.forEach((point, i) => {
-        p5.stroke(this.hue, 200, 255, i * 10)
-        p5.strokeWeight(i * 0.2)
-        p5.vertex(point.x, point.y)
-      })
-      p5.endShape()
-      
-      // Draw particle
-      p5.push()
-      p5.translate(this.x, this.y)
-      p5.noStroke()
-      p5.fill(this.hue, 200, 255)
-      p5.circle(0, 0, 8)
-      p5.fill(255, 100)
-      p5.circle(0, 0, 4)
-      p5.pop()
-    }
-  }
-
-  const setup = (p5: p5Types, canvasParentRef: Element) => {
-    p5.createCanvas(p5.windowWidth, p5.windowHeight).parent(canvasParentRef)
-    p5.colorMode(p5.HSB)
-    
-    // Create mirrors in a pattern
-    const centerX = p5.width / 2
-    const centerY = p5.height / 2
-    
+    mirrorsRef.current = []
     for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * p5.TWO_PI
-      const x = centerX + p5.cos(angle) * 100
-      const y = centerY + p5.sin(angle) * 100
-      mirrors.push(new Mirror(x, y, angle + p5.PI/2, 80))
+      const angle = (i / 6) * Math.PI * 2
+      const x = centerX + Math.cos(angle) * 100
+      const y = centerY + Math.sin(angle) * 100
+      mirrorsRef.current.push({ x, y, angle: angle + Math.PI/2, size: 80 })
     }
     
-    // Create particles
+    // Initialize particles
+    particlesRef.current = []
     for (let i = 0; i < 10; i++) {
-      particles.push(new Particle(
-        p5.random(p5.width),
-        p5.random(p5.height),
-        p5.random(-2, 2),
-        p5.random(-2, 2),
-        p5.random(360)
-      ))
+      particlesRef.current.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        hue: Math.random() * 360,
+        trail: []
+      })
     }
-  }
-
-  const draw = (p5: p5Types) => {
-    p5.background(240, 30, 20)
     
-    // Draw consciousness field
-    if (consciousnessLevel > 0.1) {
-      p5.push()
-      p5.noFill()
-      p5.strokeWeight(2)
-      p5.stroke(260, 50, 100, consciousnessLevel * 50)
+    let targetConsciousness = 0
+    
+    const draw = () => {
+      // Clear canvas
+      ctx.fillStyle = 'rgba(240, 230, 255, 0.1)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
       
-      for (let i = 0; i < 5; i++) {
-        p5.circle(p5.width/2, p5.height/2, 100 + i * 50 + p5.sin(p5.frameCount * 0.02 + i) * 20)
-      }
-      p5.pop()
-    }
-    
-    // Draw center point (terminal object)
-    p5.push()
-    p5.translate(p5.width/2, p5.height/2)
-    p5.rotate(p5.frameCount * 0.01)
-    p5.noFill()
-    p5.stroke(60, 100, 255)
-    p5.strokeWeight(2)
-    for (let i = 0; i < 6; i++) {
-      p5.rotate(p5.PI/3)
-      p5.line(0, 0, 30, 0)
-    }
-    p5.pop()
-    
-    // Update and draw mirrors
-    mirrors.forEach(mirror => {
-      mirror.angle += 0.005
-      mirror.draw(p5)
-    })
-    
-    // Update and draw particles
-    let reflectionCount = 0
-    particles.forEach(particle => {
-      particle.update(p5)
-      
-      // Check reflections
-      mirrors.forEach(mirror => {
-        if (mirror.reflect(particle, p5)) {
-          reflectionCount++
+      // Draw consciousness field
+      if (consciousnessLevel > 0.1) {
+        ctx.save()
+        ctx.strokeStyle = `rgba(138, 43, 226, ${consciousnessLevel * 0.3})`
+        ctx.lineWidth = 2
+        
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath()
+          const radius = 100 + i * 50 + Math.sin(Date.now() * 0.001 + i) * 20
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+          ctx.stroke()
         }
+        ctx.restore()
+      }
+      
+      // Draw center point (terminal object)
+      ctx.save()
+      ctx.translate(centerX, centerY)
+      ctx.rotate(Date.now() * 0.0001)
+      ctx.strokeStyle = '#FFD700'
+      ctx.lineWidth = 2
+      
+      for (let i = 0; i < 6; i++) {
+        ctx.rotate(Math.PI/3)
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineTo(30, 0)
+        ctx.stroke()
+      }
+      ctx.restore()
+      
+      // Update and draw mirrors
+      let reflectionCount = 0
+      mirrorsRef.current.forEach(mirror => {
+        mirror.angle += 0.005
+        
+        // Draw mirror
+        ctx.save()
+        ctx.translate(mirror.x, mirror.y)
+        ctx.rotate(mirror.angle)
+        ctx.strokeStyle = '#c8c8ff'
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(-mirror.size/2, 0)
+        ctx.lineTo(mirror.size/2, 0)
+        ctx.stroke()
+        
+        ctx.strokeStyle = 'rgba(150, 150, 255, 0.5)'
+        ctx.lineWidth = 8
+        ctx.beginPath()
+        ctx.moveTo(-mirror.size/2, 0)
+        ctx.lineTo(mirror.size/2, 0)
+        ctx.stroke()
+        ctx.restore()
       })
       
-      particle.draw(p5)
-    })
-    
-    // Update consciousness level based on reflections
-    targetConsciousness = p5.min(reflectionCount * 0.1, 1)
-    consciousnessLevel = p5.lerp(consciousnessLevel, targetConsciousness, 0.05)
-    
-    // Draw UI
-    p5.push()
-    p5.noStroke()
-    p5.fill(0, 0, 100)
-    p5.textAlign(p5.CENTER)
-    p5.textSize(16)
-    p5.text('Consciousness Level', p5.width/2, 30)
-    
-    // Consciousness bar
-    p5.fill(0, 0, 30)
-    p5.rect(p5.width/2 - 100, 40, 200, 20, 10)
-    p5.fill(260, 80, 100)
-    p5.rect(p5.width/2 - 100, 40, 200 * consciousnessLevel, 20, 10)
-    
-    p5.fill(0, 0, 100)
-    p5.textSize(12)
-    p5.text('Self-reflection creates awareness', p5.width/2, 80)
-    p5.pop()
-  }
-
-  const mousePressed = (p5: p5Types) => {
-    // Add mirror at mouse position
-    mirrors.push(new Mirror(p5.mouseX, p5.mouseY, p5.random(p5.TWO_PI), 60))
-    if (mirrors.length > 12) {
-      mirrors.shift()
+      // Update and draw particles
+      particlesRef.current.forEach(particle => {
+        // Update position
+        particle.x += particle.vx
+        particle.y += particle.vy
+        
+        // Add to trail
+        particle.trail.push({ x: particle.x, y: particle.y })
+        if (particle.trail.length > 20) {
+          particle.trail.shift()
+        }
+        
+        // Wrap around edges
+        if (particle.x < 0) particle.x = canvas.width
+        if (particle.x > canvas.width) particle.x = 0
+        if (particle.y < 0) particle.y = canvas.height
+        if (particle.y > canvas.height) particle.y = 0
+        
+        // Check mirror reflections
+        mirrorsRef.current.forEach(mirror => {
+          const dist = Math.hypot(particle.x - mirror.x, particle.y - mirror.y)
+          if (dist < mirror.size/2 + 10) {
+            const angle = Math.atan2(particle.y - mirror.y, particle.x - mirror.x)
+            const mirrorNormal = mirror.angle + Math.PI/2
+            const incidentAngle = angle - mirrorNormal
+            const reflectionAngle = mirrorNormal - incidentAngle
+            
+            particle.vx = Math.cos(reflectionAngle) * 2
+            particle.vy = Math.sin(reflectionAngle) * 2
+            reflectionCount++
+          }
+        })
+        
+        // Draw trail
+        ctx.beginPath()
+        particle.trail.forEach((point, i) => {
+          ctx.strokeStyle = `hsla(${particle.hue}, 80%, 50%, ${i / 20})`
+          ctx.lineWidth = i * 0.2
+          if (i === 0) {
+            ctx.moveTo(point.x, point.y)
+          } else {
+            ctx.lineTo(point.x, point.y)
+          }
+        })
+        ctx.stroke()
+        
+        // Draw particle
+        ctx.fillStyle = `hsl(${particle.hue}, 80%, 50%)`
+        ctx.beginPath()
+        ctx.arc(particle.x, particle.y, 4, 0, Math.PI * 2)
+        ctx.fill()
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+        ctx.beginPath()
+        ctx.arc(particle.x, particle.y, 2, 0, Math.PI * 2)
+        ctx.fill()
+      })
+      
+      // Update consciousness level
+      targetConsciousness = Math.min(reflectionCount * 0.1, 1)
+      setConsciousnessLevel(prev => prev + (targetConsciousness - prev) * 0.05)
     }
-  }
+    
+    const animate = () => {
+      draw()
+      animationRef.current = requestAnimationFrame(animate)
+    }
+    
+    animate()
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [])
 
-  const windowResized = (p5: p5Types) => {
-    p5.resizeCanvas(p5.windowWidth, p5.windowHeight)
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (rect) {
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      
+      // Add new mirror at click position
+      mirrorsRef.current.push({
+        x,
+        y,
+        angle: Math.random() * Math.PI * 2,
+        size: 60
+      })
+      
+      if (mirrorsRef.current.length > 12) {
+        mirrorsRef.current.shift()
+      }
+    }
   }
 
   return (
-    <Sketch 
-      setup={setup} 
-      draw={draw} 
-      mousePressed={mousePressed}
-      windowResized={windowResized}
-    />
+    <div className="p5-canvas-container">
+      <div className="text-center mb-4">
+        <h3 className="text-xl font-bold">The Mirror Universe</h3>
+        <p className="text-sm text-gray-600">Click to add mirrors</p>
+      </div>
+      
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={400}
+          onClick={handleClick}
+          className="w-full h-full rounded-lg cursor-pointer"
+          style={{ background: '#f0e6ff' }}
+        />
+        
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+          <div className="bg-white/90 px-4 py-2 rounded-full">
+            <p className="text-sm font-semibold">Consciousness Level</p>
+            <div className="w-48 h-3 bg-gray-200 rounded-full mt-1 overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-purple-400 to-purple-600"
+                animate={{ width: `${consciousnessLevel * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-sm text-gray-700 bg-white/80 px-4 py-2 rounded-full">
+          Self-reflection creates awareness
+        </p>
+      </div>
+    </div>
   )
 }
