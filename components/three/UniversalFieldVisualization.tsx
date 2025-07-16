@@ -3,7 +3,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Sphere, Line, Text, Float, MeshDistortMaterial } from '@react-three/drei'
-import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { useSpring, animated } from '@react-spring/three'
 
@@ -205,7 +205,6 @@ function Scene({ complexity, interactive }: Props) {
       {complexity === 'high' && (
         <EffectComposer>
           <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} />
-          <ChromaticAberration offset={[0.001, 0.001]} />
         </EffectComposer>
       )}
     </>

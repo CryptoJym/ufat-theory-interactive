@@ -12,9 +12,9 @@ const nextConfig = {
     domains: [],
     formats: ['image/avif', 'image/webp'],
   },
-  // Enable experimental features for better performance
+  // Disable CSS optimization to avoid critters error
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
   },
 }
 

@@ -130,7 +130,7 @@ export default function ResearchLinks() {
             
             <div className="text-sm text-gray-600 mb-3">
               <p>{citation.source} • {citation.year}</p>
-              {citation.doi && (
+              {'doi' in citation && citation.doi && (
                 <p className="font-mono text-xs mt-1">DOI: {citation.doi}</p>
               )}
             </div>
@@ -143,9 +143,9 @@ export default function ResearchLinks() {
               {citation.summary}
             </p>
             
-            {(citation.link || citation.doi) && (
+            {(('link' in citation && citation.link) || ('doi' in citation && citation.doi)) && (
               <a
-                href={citation.link || `https://doi.org/${citation.doi}`}
+                href={('link' in citation && citation.link) || `https://doi.org/${('doi' in citation && citation.doi) || ''}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-indigo-600 hover:text-indigo-800 text-sm font-medium"

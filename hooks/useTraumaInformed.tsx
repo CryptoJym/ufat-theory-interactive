@@ -36,7 +36,7 @@ export default function useTraumaInformed() {
     }
   }, [])
 
-  const updatePreference = (key: keyof UserPreferences, value: any) => {
+  const updatePreference = (key: string, value: any) => {
     setUserPreferences(prev => {
       const updated = { ...prev, [key]: value }
       localStorage.setItem('ufat-preferences', JSON.stringify(updated))

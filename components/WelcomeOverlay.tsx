@@ -24,7 +24,7 @@ export default function WelcomeOverlay({ onDismiss, onChoosePath }: Props) {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2 }}
         className="bg-white/95 p-8 rounded-3xl shadow-2xl max-w-lg mx-4"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {!showPaths ? (
           <>
