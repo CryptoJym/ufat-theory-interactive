@@ -40,6 +40,13 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden">
+      {/* Skip to content link for accessibility */}
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 bg-indigo-600 text-white px-4 py-2 rounded-lg"
+      >
+        Skip to main content
+      </a>
       {/* Calming background gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 opacity-50" />
       
@@ -87,18 +94,21 @@ export default function Home() {
       )}
 
       {/* Content Panels */}
-      <AnimatePresence mode="wait">
-        {currentView === 'explore' && (
-          <motion.div
-            key="thought-experiments"
-            initial={{ opacity: 0, x: -100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            className="fixed left-0 top-20 bottom-0 w-full md:w-1/2 lg:w-1/3 bg-white/90 backdrop-blur-md overflow-y-auto z-30"
-          >
-            <ThoughtExperiments />
-          </motion.div>
-        )}
+      <div id="main-content">
+        <AnimatePresence mode="wait">
+          {currentView === 'explore' && (
+            <motion.section
+              key="thought-experiments"
+              initial={{ opacity: 0, x: -100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 100 }}
+              className="fixed left-0 top-20 bottom-0 w-full md:w-1/2 lg:w-1/3 bg-white/90 backdrop-blur-md overflow-y-auto z-30"
+              role="region"
+              aria-label="Interactive thought experiments"
+            >
+              <ThoughtExperiments />
+            </motion.section>
+          )}
 
         {currentView === 'learn' && (
           <motion.div
@@ -124,6 +134,7 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
       {/* Escape Hatch */}
       <motion.button

@@ -30,8 +30,19 @@ export default function MirrorUniverseSketch() {
     const canvas = canvasRef.current
     if (!canvas) return
     
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
+    
+    // Set canvas size based on container
+    const resizeCanvas = () => {
+      const rect = canvas.parentElement?.getBoundingClientRect()
+      if (rect) {
+        canvas.width = rect.width
+        canvas.height = rect.height
+      }
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
     
     // Initialize mirrors
     const centerX = canvas.width / 2
@@ -195,6 +206,7 @@ export default function MirrorUniverseSketch() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
+      window.removeEventListener('resize', resizeCanvas)
     }
   }, [])
 

@@ -167,7 +167,7 @@ export default function WaveParticleSketch() {
     }
   }, [observing, observerPos])
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect()
     if (rect) {
       setObserverPos({
@@ -178,7 +178,7 @@ export default function WaveParticleSketch() {
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (observing) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
@@ -199,16 +199,17 @@ export default function WaveParticleSketch() {
         </p>
       </div>
       
-      <div className="relative">
+      <div className="relative" style={{ aspectRatio: '2/1' }}>
         <canvas
           ref={canvasRef}
           width={800}
           height={400}
           className="w-full h-full border border-gray-200 rounded-lg cursor-crosshair"
-          onMouseDown={handleMouseDown}
-          onMouseUp={() => setObserving(false)}
-          onMouseLeave={() => setObserving(false)}
-          onMouseMove={handleMouseMove}
+          onPointerDown={handlePointerDown}
+          onPointerUp={() => setObserving(false)}
+          onPointerLeave={() => setObserving(false)}
+          onPointerMove={handlePointerMove}
+          style={{ touchAction: 'none', maxHeight: '400px' }}
         />
         
         <motion.div

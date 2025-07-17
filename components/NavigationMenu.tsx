@@ -26,17 +26,27 @@ export default function NavigationMenu({ currentView, onViewChange, userPreferen
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40"
+        role="navigation"
+        aria-label="Main navigation"
       >
         <div className="bg-white/90 backdrop-blur-md rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onViewChange(item.id as any)}
-              className={`px-4 py-2 rounded-full transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onViewChange(item.id as any)
+                }
+              }}
+              className={`px-4 py-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                 currentView === item.id
                   ? 'bg-indigo-600 text-white'
                   : 'hover:bg-gray-100 text-gray-700'
               }`}
+              aria-label={`Navigate to ${item.label}`}
+              aria-current={currentView === item.id ? 'page' : undefined}
             >
               <span className="mr-2">{item.icon}</span>
               <span className="hidden sm:inline">{item.label}</span>
